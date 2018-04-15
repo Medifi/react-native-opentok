@@ -14,6 +14,7 @@ public class RNOpenTokModule extends ReactContextBaseJavaModule {
         super(context);
 
         RNOpenTokSessionManager.initSessionManager(context);
+        RNOpenTokSessionManager.getSessionManager().disconnectAllSessions();
         reactContext = context;
     }
 
