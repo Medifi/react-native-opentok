@@ -188,7 +188,7 @@ public class RNOpenTokSessionManager implements Session.SessionListener, Session
         payload.putString("sessionId", session.getSessionId());
         mContext
                 .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(Events.ON_SESSION_DID_BEGIN_RECONNECTING.toString(), payload);
+                .emit(Events.ON_SESSION_DID_RECONNECT.toString(), payload);
     }
 
     @Override
@@ -197,7 +197,7 @@ public class RNOpenTokSessionManager implements Session.SessionListener, Session
         payload.putString("sessionId", session.getSessionId());
         mContext
                 .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(Events.ON_SESSION_DID_RECONNECTING.toString(), payload);
+                .emit(Events.ON_SESSION_DID_BEGIN_RECONNECTING.toString(), payload);
     }
 
     @Override

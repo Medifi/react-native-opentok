@@ -12,7 +12,7 @@ enum Events {
     ON_ARCHIVE_STOPPED_WITH_ID("onArchiveStoppedWithId"),
     ON_SESSION_CONNECTION_CREATED("onSessionConnectionCreated"),
     ON_SESSION_CONNECTION_DESTROYED("onSessionConnectionDestroyed"),
-    ON_SESSION_DID_RECONNECTING("onSessionDidReconnect"),
+    ON_SESSION_DID_RECONNECT("onSessionDidReconnect"),
     ON_SESSION_DID_BEGIN_RECONNECTING("onSessionDidBeginReconnecting"),
     ON_SESSION_DID_CONNECT("onSessionDidConnect"),
     ON_SESSION_DID_DISCONNECT("onSessionDidDisconnect"),
