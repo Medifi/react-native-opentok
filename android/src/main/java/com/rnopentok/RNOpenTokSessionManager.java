@@ -16,7 +16,7 @@ import com.opentok.android.Stream;
 import java.util.HashMap;
 
 
-public class RNOpenTokSessionManager implements Session.SessionListener, Session.SignalListener, Session.ReconnectionListener, Session.ArchiveListener{
+public class RNOpenTokSessionManager implements Session.ConnectionListener, Session.SessionListener, Session.SignalListener, Session.ReconnectionListener, Session.ArchiveListener{
     private static RNOpenTokSessionManager instance = null;
     private ReactApplicationContext mContext;
     private String mApiKey;
@@ -213,5 +213,25 @@ public class RNOpenTokSessionManager implements Session.SessionListener, Session
         mContext
                 .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
                 .emit(Events.ON_ARCHIVE_STOPPED_WITH_ID.toString(), payload);
+    }
+
+    @Override
+    public void onConnectionCreated(Session session, Connection connection) {
+        WritableMap payload = Arguments.createMap();
+        payload.putString("sessionId", session.getSessionId());
+        payload.putString("connectionId", connection.getConnectionId());
+        mContext
+                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                .emit(Events.ON_SESSION_CONNECTION_CREATED.toString(), payload);
+    }
+
+    @Override
+    public void onConnectionDestroyed(Session session, Connection connection) {
+        WritableMap payload = Arguments.createMap();
+        payload.putString("sessionId", session.getSessionId());
+        payload.putString("connectionId", connection.getConnectionId());
+        mContext
+                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                .emit(Events.ON_SESSION_CONNECTION_DESTROYED.toString(), payload);
     }
 }
