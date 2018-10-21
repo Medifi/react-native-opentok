@@ -157,7 +157,8 @@ public class RNOpenTokSessionManager implements Session.ConnectionListener, Sess
     public void onError(Session session, OpentokError opentokError) {
         WritableMap payload = Arguments.createMap();
         payload.putString("sessionId", session.getSessionId());
-        payload.putString("error", opentokError.getMessage());
+        payload.putString("message", opentokError.getMessage());
+        payload.putString("code", opentokError.getErrorCode().toString())
 
         mContext
                 .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)

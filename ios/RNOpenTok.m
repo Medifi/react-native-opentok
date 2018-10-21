@@ -29,9 +29,9 @@ RCT_EXPORT_METHOD(disconnectAll) {
 RCT_EXPORT_METHOD(sendSignal:(NSString *)sessionId type:(NSString *)type data:(NSString *)data resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
     OTSession *session = [[RNOpenTokSessionManager sessionManager] getSession:sessionId];
     OTError* error = nil;
-    
+
     [session signalWithType:type string:data connection:nil error:&error];
-    
+
     if (!session || error) {
         reject(@"not_sent", @"Signal wasn't sent", error);
     } else {
@@ -78,10 +78,15 @@ RCT_EXPORT_METHOD(sendSignal:(NSString *)sessionId type:(NSString *)type data:(N
 }
 
 - (void)session:(OTSession*)session didFailWithError:(OTError*)error {
-    [[NSNotificationCenter defaultCenter]
+  [[NSNotificationCenter defaultCenter]
      postNotificationName:@"onSessionDidFailWithError"
-     object:nil
-     userInfo:@{@"sessionId": session.sessionId, @"error": [error description]}];
+                   object:nil
+                 userInfo:@{
+                            @"sessionId": session.sessionId,
+                            @"message": [error description],
+                            @"code": [NSNumber numberWithLong:[error code]]
+    }
+   ];
 }
 
 - (void)session:(nonnull OTSession *)session receivedSignalType:(NSString *_Nullable)type fromConnection:(OTConnection *_Nullable)connection withString:(NSString *_Nullable)string {
