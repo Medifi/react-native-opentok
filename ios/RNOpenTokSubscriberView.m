@@ -44,11 +44,11 @@
     if (_subscriber == nil) {
         return;
     }
-    
+
     if ([changedProps containsObject:@"mute"]) {
         _subscriber.subscribeToAudio = !_mute;
     }
-    
+
     if ([changedProps containsObject:@"video"]) {
         _subscriber.subscribeToVideo = _video;
     }
@@ -71,22 +71,22 @@
     _subscriber = [[OTSubscriber alloc] initWithStream:stream delegate:self];
     _subscriber.subscribeToAudio = !_mute;
     _subscriber.subscribeToVideo = _video;
-    
+
     OTError *error = nil;
     [_session subscribe:_subscriber error:&error];
-    
+
     if (error) {
         [self subscriber:_subscriber didFailWithError:error];
         return;
     }
-    
+
     [self attachSubscriberView];
 }
 
 - (void)unsubscribe {
     OTError *error = nil;
     [_session unsubscribe:_subscriber error:&error];
-    
+
     if (error) {
         NSLog(@"%@", error);
     }
@@ -153,6 +153,33 @@
 
 - (void)subscriberDidReconnectToStream:(OTSubscriberKit*)subscriber {
     [self subscriberDidConnectToStream:subscriber];
+}
+
+- (void)subscriberVideoChanged:(Boolean)video {
+    [[NSNotificationCenter defaultCenter]
+     postNotificationName:@"onSubscribeVideoChanged"
+     object:nil
+     userInfo:@{@"sessionId": _sessionId, @"video": @(video)}];
+}
+
+- (void)subscriberVideoDisabled:(OTSubscriberKit*)subscriber reason:(OTSubscriberVideoEventReason)reason {
+    switch(reason) {
+        case OTSubscriberVideoEventPublisherPropertyChanged:
+            [self subscriberVideoChanged:false];
+            break;
+        default:
+            break;
+    }
+}
+
+- (void)subscriberVideoEnabled:(OTSubscriberKit*)subscriber reason:(OTSubscriberVideoEventReason)reason {
+    switch(reason) {
+        case OTSubscriberVideoEventPublisherPropertyChanged:
+            [self subscriberVideoChanged:true];
+            break;
+        default:
+            break;
+    }
 }
 
 @end

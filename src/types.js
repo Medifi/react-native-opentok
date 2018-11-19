@@ -58,6 +58,7 @@ export type SubscriberProps = {|
   onSubscribeStart?: () => void,
   onSubscribeStop?: () => void,
   onSubscribeError?: () => void,
+  onSubscribeVideoChanged?: () => void,
 |};
 
 export type SubscriberViewProps = {

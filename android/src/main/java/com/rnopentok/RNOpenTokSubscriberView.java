@@ -10,7 +10,7 @@ import com.opentok.android.Stream;
 import com.opentok.android.Subscriber;
 import com.opentok.android.SubscriberKit;
 
-public class RNOpenTokSubscriberView extends RNOpenTokView implements SubscriberKit.SubscriberListener {
+public class RNOpenTokSubscriberView extends RNOpenTokView implements SubscriberKit.SubscriberListener, SubscriberKit.VideoListener {
     private Subscriber mSubscriber;
     private Boolean mAudioEnabled;
     private Boolean mVideoEnabled;
@@ -50,6 +50,7 @@ public class RNOpenTokSubscriberView extends RNOpenTokView implements Subscriber
     private void startSubscribing(Stream stream) {
         mSubscriber = new Subscriber(getContext(), stream);
         mSubscriber.setSubscriberListener(this);
+        mSubscriber.setVideoListener(this);
         mSubscriber.setSubscribeToAudio(mAudioEnabled);
         mSubscriber.setSubscribeToVideo(mVideoEnabled);
 
@@ -83,7 +84,14 @@ public class RNOpenTokSubscriberView extends RNOpenTokView implements Subscriber
         sendEvent(Events.EVENT_SUBSCRIBE_STOP, Arguments.createMap());
     }
 
-    /** Subscribe listener **/
+    private void onVideoChanged(Boolean video) {
+        WritableMap payload = Arguments.createMap();
+        payload.putBoolean("video", video);
+
+        sendEvent(Events.EVENT_SUBSCRIBE_VIDEO_CHANGED, payload);
+    }
+
+    /** SubscriberListener **/
 
     @Override
     public void onConnected(SubscriberKit subscriberKit) {}
@@ -99,4 +107,28 @@ public class RNOpenTokSubscriberView extends RNOpenTokView implements Subscriber
         sendEvent(Events.EVENT_SUBSCRIBE_ERROR, payload);
     }
 
+    /** VideoListener **/
+
+    @Override
+    public void onVideoDisabled(SubscriberKit subscriberKit, String reason) {
+      if (reason.equals(SubscriberKit.VIDEO_REASON_PUBLISH_VIDEO)) {
+        onVideoChanged(false);
+      }
+    }
+
+    @Override
+    public void onVideoEnabled(SubscriberKit subscriberKit, String reason) {
+      if (reason.equals(SubscriberKit.VIDEO_REASON_PUBLISH_VIDEO)) {
+        onVideoChanged(true);
+      }
+    }
+
+    @Override
+    public void onVideoDataReceived(SubscriberKit subscriber) {}
+
+    @Override
+    public void onVideoDisableWarning(SubscriberKit subscriber) {}
+
+    @Override
+    public void onVideoDisableWarningLifted(SubscriberKit subscriber) {}
 }
