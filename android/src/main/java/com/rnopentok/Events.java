@@ -7,6 +7,7 @@ enum Events {
     EVENT_SUBSCRIBE_START("onSubscribeStart"),
     EVENT_SUBSCRIBE_STOP("onSubscribeStop"),
     EVENT_SUBSCRIBE_ERROR("onSubscribeError"),
+    EVENT_SUBSCRIBE_VIDEO_CHANGED("onSubscribeVideoChanged"),
     EVENT_ON_SIGNAL_RECEIVED("onSignalReceived"),
     ON_ARCHIVE_STARTED_WITH_ID("onArchiveStartedWithId"),
     ON_ARCHIVE_STOPPED_WITH_ID("onArchiveStoppedWithId"),

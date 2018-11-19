@@ -16,6 +16,7 @@ const subscribeListeners = [
   'onSubscribeStart',
   'onSubscribeStop',
   'onSubscribeError',
+  'onSubscribeVideoChanged'
 ];
 const NOOP = () => {};
 
@@ -26,6 +27,7 @@ export default class SubscriberView extends React.Component<
     onSubscribeStart: NOOP,
     onSubscribeStop: NOOP,
     onSubscribeError: NOOP,
+    onSubscribeVideoChanged: NOOP,
     mute: false,
     video: true,
   };
@@ -59,6 +61,7 @@ export default class SubscriberView extends React.Component<
       onSubscribeStart,
       onSubscribeStop,
       onSubscribeError,
+      onSubscribeVideoChanged,
       ...passProps
     } = this.props;
 

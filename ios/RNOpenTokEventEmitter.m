@@ -16,6 +16,7 @@ RCT_EXPORT_MODULE();
              @"onSubscribeStart",
              @"onSubscribeStop",
              @"onSubscribeError",
+             @"onSubscribeVideoChanged",
              @"onPublishStart",
              @"onPublishStop",
              @"onPublishError",
