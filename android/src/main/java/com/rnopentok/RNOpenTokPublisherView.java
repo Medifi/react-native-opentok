@@ -13,7 +13,10 @@ import com.opentok.android.PublisherKit;
 import android.support.annotation.Nullable;
 import android.view.View;
 
-public class RNOpenTokPublisherView extends RNOpenTokView implements PublisherKit.PublisherListener {
+public class RNOpenTokPublisherView
+    extends RNOpenTokView
+    implements PublisherKit.PublisherListener {
+
     private Publisher mPublisher;
     private Boolean mAudioEnabled;
     private Boolean mVideoEnabled;
@@ -31,9 +34,10 @@ public class RNOpenTokPublisherView extends RNOpenTokView implements PublisherKi
     }
 
     @Override
-    protected void onDetachedFromWindow() {
+    public void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         RNOpenTokSessionManager.getSessionManager().removePublisherListener(mSessionId);
+        cleanUpPublisher();
     }
 
     public void setAudio(Boolean enabled) {
@@ -62,30 +66,31 @@ public class RNOpenTokPublisherView extends RNOpenTokView implements PublisherKi
         mScreenCapture = enabled;
 
         // @TODO: recreate publisher on change
-//        if (mPublisher != null) {
-//            Session session = RNOpenTokSessionManager.getSessionManager().getSession(mSessionId);
-//            session.unpublish(mPublisher);
-//            RNOpenTokSessionManager.getSessionManager().removePublisherListener(mSessionId);
-//            cleanUpPublisher();
-//            startPublishing();
-//        }
+        //        if (mPublisher != null) {
+        //            Session session = RNOpenTokSessionManager.getSessionManager().getSession(mSessionId);
+        //            session.unpublish(mPublisher);
+        //            RNOpenTokSessionManager.getSessionManager().removePublisherListener(mSessionId);
+        //            cleanUpPublisher();
+        //            startPublishing();
+        //        }
     }
 
     public void setScreenCaptureSettings(@Nullable ReadableMap screenCaptureSettings) {
         mScreenCaptureSettings = screenCaptureSettings;
     }
 
-    private void startPublishing() {
+    public void startPublishing (Session session) {
         Publisher.Builder builder = new Publisher.Builder(getContext());
+
         if (mScreenCapture) {
             View captureView = ReactFindViewUtil.findView(this.getRootView(), "RN_OPENTOK_SCREEN_CAPTURE_VIEW");
             if (captureView == null) {
                 sendEvent(Events.ERROR_NO_SCREEN_CAPTURE_VIEW, null);
                 return;
             }
-            mPublisher = builder.capturer(
-                    new RNOpenTokScreenSharingCapturer(captureView, mScreenCaptureSettings)
-            ).build();
+            mPublisher = builder
+                .capturer(new RNOpenTokScreenSharingCapturer(captureView, mScreenCaptureSettings))
+                .build();
         } else {
             mPublisher = builder.build();
         }
@@ -94,14 +99,7 @@ public class RNOpenTokPublisherView extends RNOpenTokView implements PublisherKi
         mPublisher.setPublishAudio(mAudioEnabled);
         mPublisher.setPublishVideo(mVideoEnabled);
 
-        if (mScreenCapture) {
-            mPublisher.setPublisherVideoType(PublisherKit.PublisherKitVideoType.PublisherKitVideoTypeScreen);
-            mPublisher.setAudioFallbackEnabled(false);
-        }
-
-        Session session = RNOpenTokSessionManager.getSessionManager().getSession(mSessionId);
         session.publish(mPublisher);
-
         attachPublisherView();
     }
 
@@ -111,13 +109,11 @@ public class RNOpenTokPublisherView extends RNOpenTokView implements PublisherKi
     }
 
     private void cleanUpPublisher() {
-        removeView(mPublisher.getView());
-        // mPublisher.destroy();
-        mPublisher = null;
-    }
-
-    public void onConnected(Session session) {
-        startPublishing();
+        if (mPublisher != null) {
+            removeView(mPublisher.getView());
+            mPublisher.destroy();
+            mPublisher = null;
+        }
     }
 
     /** Publisher listener **/
