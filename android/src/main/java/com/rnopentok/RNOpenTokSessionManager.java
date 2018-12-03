@@ -33,17 +33,21 @@ public class RNOpenTokSessionManager
         this.mContext = context;
     }
 
-    static RNOpenTokSessionManager initSessionManager (ReactApplicationContext context) {
+    public static RNOpenTokSessionManager initSessionManager (ReactApplicationContext context) {
         if (instance == null) {
-            String apiKey = "";
-            ApplicationInfo ai = null;
-            try {
-                ai = context.getPackageManager().getApplicationInfo(context.getPackageName(), PackageManager.GET_META_DATA);
-                apiKey = ai.metaData.get("OPENTOK_API_KEY").toString();
-            } catch (PackageManager.NameNotFoundException | NullPointerException e) {
-                e.printStackTrace();
+            synchronized (RNOpenTokSessionManager.class) {
+                if (instance == null) {
+                    String apiKey = "";
+                    ApplicationInfo ai = null;
+                    try {
+                        ai = context.getPackageManager().getApplicationInfo(context.getPackageName(), PackageManager.GET_META_DATA);
+                        apiKey = ai.metaData.get("OPENTOK_API_KEY").toString();
+                    } catch (PackageManager.NameNotFoundException | NullPointerException e) {
+                        e.printStackTrace();
+                    }
+                    instance = new RNOpenTokSessionManager (context, apiKey);
+                }
             }
-            instance = new RNOpenTokSessionManager(context, apiKey);
         } else if (context != null && instance.getContext() != context) {
             instance.setContext(context);
         }
