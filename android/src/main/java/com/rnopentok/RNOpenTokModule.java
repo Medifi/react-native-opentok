@@ -25,12 +25,7 @@ public class RNOpenTokModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void connect(String sessionId, String token, Promise promise) {
-        Session session = RNOpenTokSessionManager.getSessionManager().connectToSession(sessionId, token);
-        session.setSessionListener(RNOpenTokSessionManager.getSessionManager());
-        session.setSignalListener(RNOpenTokSessionManager.getSessionManager());
-        session.setReconnectionListener(RNOpenTokSessionManager.getSessionManager());
-        session.setArchiveListener(RNOpenTokSessionManager.getSessionManager());
-        session.setConnectionListener(RNOpenTokSessionManager.getSessionManager());
+        RNOpenTokSessionManager.getSessionManager().connectToSession(sessionId, token);
         promise.resolve(Boolean.valueOf(true));
     }
 
@@ -46,9 +41,7 @@ public class RNOpenTokModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void sendSignal(String sessionId, String type, String data, Promise promise) {
-        Session session = RNOpenTokSessionManager.getSessionManager().getSession(sessionId);
-
-        session.sendSignal(type, data);
+        RNOpenTokSessionManager.getSessionManager().sendSignal(sessionId, type, data);
         promise.resolve(Boolean.valueOf(true));
     }
 

@@ -10,7 +10,11 @@ import com.opentok.android.Stream;
 import com.opentok.android.Subscriber;
 import com.opentok.android.SubscriberKit;
 
-public class RNOpenTokSubscriberView extends RNOpenTokView implements SubscriberKit.SubscriberListener, SubscriberKit.VideoListener {
+public class RNOpenTokSubscriberView
+    extends RNOpenTokView
+    implements SubscriberKit.SubscriberListener,
+               SubscriberKit.VideoListener {
+
     private Subscriber mSubscriber;
     private Boolean mAudioEnabled;
     private Boolean mVideoEnabled;
@@ -23,6 +27,13 @@ public class RNOpenTokSubscriberView extends RNOpenTokView implements Subscriber
     public void onAttachedToWindow() {
         super.onAttachedToWindow();
         RNOpenTokSessionManager.getSessionManager().setSubscriberListener(mSessionId, this);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        RNOpenTokSessionManager.getSessionManager().removeSubscriberListener(mSessionId);
+        cleanUpSubscriber();
     }
 
     public void setAudio(Boolean enabled) {
@@ -41,26 +52,26 @@ public class RNOpenTokSubscriberView extends RNOpenTokView implements Subscriber
         mVideoEnabled = enabled;
     }
 
-    @Override
-    protected void onDetachedFromWindow() {
-        super.onDetachedFromWindow();
-        RNOpenTokSessionManager.getSessionManager().removeSubscriberListener(mSessionId);
-    }
-
-    private void startSubscribing(Stream stream) {
+    public void startStreaming(Session session, Stream stream) {
         mSubscriber = new Subscriber(getContext(), stream);
         mSubscriber.setSubscriberListener(this);
         mSubscriber.setVideoListener(this);
         mSubscriber.setSubscribeToAudio(mAudioEnabled);
         mSubscriber.setSubscribeToVideo(mVideoEnabled);
 
-        mSubscriber.getRenderer().setStyle(BaseVideoRenderer.STYLE_VIDEO_SCALE,
-                BaseVideoRenderer.STYLE_VIDEO_FILL);
+        mSubscriber
+            .getRenderer()
+            .setStyle(BaseVideoRenderer.STYLE_VIDEO_SCALE, BaseVideoRenderer.STYLE_VIDEO_FILL);
 
-        Session session = RNOpenTokSessionManager.getSessionManager().getSession(mSessionId);
         session.subscribe(mSubscriber);
 
+        sendEvent(Events.EVENT_SUBSCRIBE_START, Arguments.createMap());
         attachSubscriberView();
+    }
+
+    public void stopStreaming() {
+        sendEvent(Events.EVENT_SUBSCRIBE_STOP, Arguments.createMap());
+        cleanUpSubscriber();
     }
 
     private void attachSubscriberView() {
@@ -69,25 +80,16 @@ public class RNOpenTokSubscriberView extends RNOpenTokView implements Subscriber
     }
 
     private void cleanUpSubscriber() {
-        removeView(mSubscriber.getView());
-        mSubscriber = null;
-    }
-
-    public void onStreamReceived(Session session, Stream stream) {
-        if (mSubscriber == null) {
-            startSubscribing(stream);
-            sendEvent(Events.EVENT_SUBSCRIBE_START, Arguments.createMap());
+        if (mSubscriber != null) {
+            removeView(mSubscriber.getView());
+            mSubscriber.destroy();
+            mSubscriber = null;
         }
-    }
-
-    public void onStreamDropped(Session session, Stream stream) {
-        sendEvent(Events.EVENT_SUBSCRIBE_STOP, Arguments.createMap());
     }
 
     private void onVideoChanged(Boolean video) {
         WritableMap payload = Arguments.createMap();
         payload.putBoolean("video", video);
-
         sendEvent(Events.EVENT_SUBSCRIBE_VIDEO_CHANGED, payload);
     }
 

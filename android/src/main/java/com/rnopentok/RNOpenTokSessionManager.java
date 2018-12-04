@@ -15,38 +15,47 @@ import com.opentok.android.Stream;
 
 import java.util.HashMap;
 
+public class RNOpenTokSessionManager
+    implements Session.ConnectionListener,
+               Session.SessionListener,
+               Session.SignalListener,
+               Session.ReconnectionListener,
+               Session.ArchiveListener {
 
-public class RNOpenTokSessionManager implements Session.ConnectionListener, Session.SessionListener, Session.SignalListener, Session.ReconnectionListener, Session.ArchiveListener{
-    private static RNOpenTokSessionManager instance = null;
+    private static RNOpenTokSessionManager instance;
     private ReactApplicationContext mContext;
     private String mApiKey;
-    private HashMap<String, Session> mSessions;
-    private HashMap<String, RNOpenTokSubscriberView> mSubscribers;
-    private HashMap<String, RNOpenTokPublisherView> mPublishers;
+    private HashMap<String, RNOpenTokSessionWrapper> mSessions;
 
     private RNOpenTokSessionManager(ReactApplicationContext context, String apiKey) {
-        this.mSessions = new HashMap<>();
-        this.mSubscribers = new HashMap<String, RNOpenTokSubscriberView>();
-        this.mPublishers = new HashMap<String, RNOpenTokPublisherView>();
+        this.mSessions = new HashMap<String, RNOpenTokSessionWrapper>();
         this.mApiKey = apiKey;
         this.mContext = context;
     }
 
-    static RNOpenTokSessionManager initSessionManager(ReactApplicationContext context) {
+    public static RNOpenTokSessionManager initSessionManager (ReactApplicationContext context) {
         if (instance == null) {
-            String apiKey = "";
-            ApplicationInfo ai = null;
-            try {
-                ai = context.getPackageManager().getApplicationInfo(context.getPackageName(), PackageManager.GET_META_DATA);
-                apiKey = ai.metaData.get("OPENTOK_API_KEY").toString();
-            } catch (PackageManager.NameNotFoundException | NullPointerException e) {
-                e.printStackTrace();
+            synchronized (RNOpenTokSessionManager.class) {
+                if (instance == null) {
+                    String apiKey = "";
+                    ApplicationInfo ai = null;
+                    try {
+                        ai = context.getPackageManager().getApplicationInfo(context.getPackageName(), PackageManager.GET_META_DATA);
+                        apiKey = ai.metaData.get("OPENTOK_API_KEY").toString();
+                    } catch (PackageManager.NameNotFoundException | NullPointerException e) {
+                        e.printStackTrace();
+                    }
+                    instance = new RNOpenTokSessionManager (context, apiKey);
+                }
             }
-            instance = new RNOpenTokSessionManager(context, apiKey);
         } else if (context != null && instance.getContext() != context) {
-          instance.setContext(context);
+            instance.setContext(context);
         }
         return instance;
+    }
+
+    public static RNOpenTokSessionManager getSessionManager() {
+        return RNOpenTokSessionManager.initSessionManager(null);
     }
 
     public ReactApplicationContext getContext() {
@@ -57,154 +66,147 @@ public class RNOpenTokSessionManager implements Session.ConnectionListener, Sess
         this.mContext = context;
     }
 
-    static RNOpenTokSessionManager getSessionManager() {
-        return RNOpenTokSessionManager.initSessionManager(null);
-    }
-
-    public Session connectToSession(String sessionId, String token) {
-        Session session = new Session.Builder(this.mContext, this.mApiKey, sessionId)
-            .sessionOptions(new Session.SessionOptions() {
-                @Override
-                public boolean useTextureViews() {
-                    return true;
-                }
-            }).build();
-        // Session session = new Session(this.mContext, this.mApiKey, sessionId);
-        session.connect(token);
-        this.mSessions.put(sessionId, session);
-
-        return session;
-    }
-
-    public Session getSession(String sessionId) {
-        return this.mSessions.get(sessionId);
+    public void connectToSession (String sessionId, String token) {
+        getSession(sessionId).connect(token);
     }
 
     public void disconnectSession(String sessionId) {
-        Session session = this.mSessions.get(sessionId);
-
-        if (session != null) {
-            session.disconnect();
-            this.mSessions.remove(sessionId);
-        }
+        getSession(sessionId).disconnect();
+        this.mSessions.remove(sessionId);
     }
 
-    public void disconnectAllSessions() {
-        for (Session session: this.mSessions.values()) {
+    public void disconnectAllSessions () {
+        for(RNOpenTokSessionWrapper session : this.mSessions.values()) {
             session.disconnect();
         }
+
         this.mSessions.clear();
     }
 
-    public void setSubscriberListener (String sessionId, RNOpenTokSubscriberView subscriber) {
-        this.mSubscribers.put(sessionId, subscriber);
+    public void sendSignal (String sessionId, String type, String data) {
+        getSession(sessionId).sendSignal(type, data);
     }
 
-    public void removeSubscriberListener (String sessionId) {
-        this.mSubscribers.remove(sessionId);
+    public void setPublisherListener (String sessionId, RNOpenTokPublisherView view) {
+        getSession(sessionId).setPublisherView(view);
     }
 
-    public void setPublisherListener (String sessionId, RNOpenTokPublisherView publisher) {
-        this.mPublishers.put(sessionId, publisher);
+    public void removePublisherListener(String sessionId) {
+        getSession(sessionId).removePublisherView();
     }
 
-    public void removePublisherListener (String sessionId) {
-        this.mPublishers.remove(sessionId);
+    public void setSubscriberListener(String sessionId, RNOpenTokSubscriberView view) {
+        getSession(sessionId).setSubscriberView(view);
+    }
+
+    public void removeSubscriberListener(String sessionId) {
+        getSession(sessionId).removeSubscriberView();
+    }
+
+    private RNOpenTokSessionWrapper getSession (String sessionId) {
+        RNOpenTokSessionWrapper sessionWrapper = this.mSessions.get(sessionId);
+
+        if (sessionWrapper == null) {
+            Session session = new Session
+                .Builder(this.mContext, this.mApiKey, sessionId)
+                .sessionOptions(sessionOptions).build();
+
+            setListeners(session);
+            sessionWrapper = new RNOpenTokSessionWrapper(session);
+            this.mSessions.put(sessionId, sessionWrapper);
+        }
+
+        return sessionWrapper;
+    }
+
+    private void setListeners (Session session) {
+        session.setSessionListener(this);
+        session.setSignalListener(this);
+        session.setReconnectionListener(this);
+        session.setArchiveListener(this);
+        session.setConnectionListener(this);
+    }
+
+    private void emitEvent(Events event, WritableMap payload) {
+        this.mContext
+            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+            .emit(event.toString(), payload);
     }
 
     @Override
-    public void onConnected(Session session) {
-        RNOpenTokPublisherView publisherView = this.mPublishers.get(session.getSessionId());
-        if( publisherView != null) {
-            publisherView.onConnected(session);
-        }
-        WritableMap payload = Arguments.createMap();
-        payload.putString("sessionId", session.getSessionId());
+    public void onConnected (Session session) {
+        String sessionId = session.getSessionId();
+        getSession(sessionId).onConnected(session);
 
-        mContext
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(Events.ON_SESSION_DID_CONNECT.toString(), payload);
+        WritableMap payload = Arguments.createMap();
+        payload.putString("sessionId", sessionId);
+        emitEvent(Events.ON_SESSION_DID_CONNECT, payload);
     }
 
     @Override
     public void onDisconnected(Session session) {
-        WritableMap payload = Arguments.createMap();
-        payload.putString("sessionId", session.getSessionId());
+        String sessionId = session.getSessionId();
+        getSession(sessionId).onDisconnected(session);
 
-        mContext
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(Events.ON_SESSION_DID_DISCONNECT.toString(), payload);
+        WritableMap payload = Arguments.createMap();
+        payload.putString("sessionId", sessionId);
+        emitEvent(Events.ON_SESSION_DID_CONNECT, payload);
     }
 
     @Override
     public void onStreamReceived(Session session, Stream stream) {
-        RNOpenTokSubscriberView subscriberView = this.mSubscribers.get(session.getSessionId());
-        if( subscriberView != null) {
-            subscriberView.onStreamReceived(session, stream);
-        }
-        WritableMap payload = Arguments.createMap();
-        payload.putString("sessionId", session.getSessionId());
-        payload.putString("streamId", stream.getStreamId());
+        String sessionId = session.getSessionId();
+        String streamId = stream.getStreamId();
+        getSession(sessionId).onStreamReceived(session, stream);
 
-        mContext
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(Events.ON_SESSION_STREAM_CREATED.toString(), payload);
+        WritableMap payload = Arguments.createMap();
+        payload.putString("sessionId", sessionId);
+        payload.putString("streamId", streamId);
+        emitEvent(Events.ON_SESSION_STREAM_CREATED, payload);
     }
 
     @Override
     public void onStreamDropped(Session session, Stream stream) {
-        RNOpenTokSubscriberView subscriberView = this.mSubscribers.get(session.getSessionId());
-        if( subscriberView != null) {
-            subscriberView.onStreamDropped(session, stream);
-        }
-        WritableMap payload = Arguments.createMap();
-        payload.putString("sessionId", session.getSessionId());
-        payload.putString("streamId", stream.getStreamId());
+        String sessionId = session.getSessionId();
+        String streamId = stream.getStreamId();
+        getSession(sessionId).onStreamDropped(session, stream);
 
-        mContext
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(Events.ON_SESSION_STREAM_DESTROYED.toString(), payload);
+        WritableMap payload = Arguments.createMap();
+        payload.putString("sessionId", sessionId);
+        payload.putString("streamId", streamId);
+        emitEvent(Events.ON_SESSION_STREAM_DESTROYED, payload);
     }
 
     @Override
     public void onError(Session session, OpentokError opentokError) {
+        String sessionId = session.getSessionId();
+        String message = opentokError.getMessage();
+        getSession(sessionId).onError(session, opentokError);
+
         WritableMap payload = Arguments.createMap();
-        payload.putString("sessionId", session.getSessionId());
-        payload.putString("error", opentokError.getMessage());
-
-        mContext
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(Events.ON_SESSION_DID_FAIL_WITH_ERROR.toString(), payload);
-    }
-
-    @Override
-    public void onSignalReceived(Session session, String type, String data, Connection connection) {
-        WritableMap payload = Arguments.createMap();
-        payload.putString("sessionId", session.getSessionId());
-        payload.putString("type", type);
-        payload.putString("data", data);
-
-        mContext
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(Events.EVENT_ON_SIGNAL_RECEIVED.toString(), payload);
+        payload.putString("sessionId", sessionId);
+        payload.putString("error", message);
+        emitEvent(Events.ON_SESSION_DID_FAIL_WITH_ERROR, payload);
     }
 
     @Override
     public void onReconnected(Session session) {
+        String sessionId = session.getSessionId();
+        getSession(sessionId).onReconnected(session);
+
         WritableMap payload = Arguments.createMap();
-        payload.putString("sessionId", session.getSessionId());
-        mContext
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(Events.ON_SESSION_DID_RECONNECT.toString(), payload);
+        payload.putString("sessionId", sessionId);
+        emitEvent(Events.ON_SESSION_DID_RECONNECT, payload);
     }
 
     @Override
     public void onReconnecting(Session session) {
+        String sessionId = session.getSessionId();
+        getSession(sessionId).onReconnecting(session);
+
         WritableMap payload = Arguments.createMap();
-        payload.putString("sessionId", session.getSessionId());
-        mContext
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(Events.ON_SESSION_DID_BEGIN_RECONNECTING.toString(), payload);
+        payload.putString("sessionId", sessionId);
+        emitEvent(Events.ON_SESSION_DID_BEGIN_RECONNECTING, payload);
     }
 
     @Override
@@ -213,9 +215,7 @@ public class RNOpenTokSessionManager implements Session.ConnectionListener, Sess
         payload.putString("sessionId", session.getSessionId());
         payload.putString("id", id);
         payload.putString("name", name);
-        mContext
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(Events.ON_ARCHIVE_STARTED_WITH_ID.toString(), payload);
+        emitEvent(Events.ON_ARCHIVE_STARTED_WITH_ID, payload);
     }
 
     @Override
@@ -223,9 +223,7 @@ public class RNOpenTokSessionManager implements Session.ConnectionListener, Sess
         WritableMap payload = Arguments.createMap();
         payload.putString("sessionId", session.getSessionId());
         payload.putString("id", id);
-        mContext
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(Events.ON_ARCHIVE_STOPPED_WITH_ID.toString(), payload);
+        emitEvent(Events.ON_ARCHIVE_STOPPED_WITH_ID, payload);
     }
 
     @Override
@@ -233,9 +231,7 @@ public class RNOpenTokSessionManager implements Session.ConnectionListener, Sess
         WritableMap payload = Arguments.createMap();
         payload.putString("sessionId", session.getSessionId());
         payload.putString("connectionId", connection.getConnectionId());
-        mContext
-            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-            .emit(Events.ON_SESSION_CONNECTION_CREATED.toString(), payload);
+        emitEvent(Events.ON_SESSION_CONNECTION_CREATED, payload);
     }
 
     @Override
@@ -243,8 +239,22 @@ public class RNOpenTokSessionManager implements Session.ConnectionListener, Sess
         WritableMap payload = Arguments.createMap();
         payload.putString("sessionId", session.getSessionId());
         payload.putString("connectionId", connection.getConnectionId());
-        mContext
-            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-            .emit(Events.ON_SESSION_CONNECTION_DESTROYED.toString(), payload);
+        emitEvent(Events.ON_SESSION_CONNECTION_DESTROYED, payload);
     }
+
+    @Override
+    public void onSignalReceived(Session session, String type, String data, Connection connection) {
+        WritableMap payload = Arguments.createMap();
+        payload.putString("sessionId", session.getSessionId());
+        payload.putString("type", type);
+        payload.putString("data", data);
+        emitEvent(Events.EVENT_ON_SIGNAL_RECEIVED, payload);
+    }
+
+    private final Session.SessionOptions sessionOptions = new Session.SessionOptions () {
+        @Override
+        public boolean useTextureViews () {
+            return true;
+        }
+    };
 }
